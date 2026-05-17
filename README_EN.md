@@ -279,4 +279,4 @@ If this project helped you, consider buying the author a coffee.
 
 ## License
 
-MIT
+[MIT](LICENSE) — Free to use, modify, and distribute. Just keep the copyright notice.

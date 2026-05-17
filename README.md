@@ -276,4 +276,4 @@ remote-claude-code/
 
 ## License
 
-MIT
+[MIT](LICENSE) — 随意使用、修改、分发，保留版权声明即可。
