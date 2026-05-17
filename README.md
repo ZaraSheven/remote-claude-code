@@ -160,8 +160,6 @@ SHELL=/bin/zsh node server.js
 **欢迎任何形式的贡献：**
 
 - 提交 Bug 报告或功能建议 → [Issue](https://github.com/ZaraSheven/remote-claude-code/issues)
-- 贡献代码 → Fork + PR（小而美的改动比大重构更受欢迎）
-- 改进文档 → 错别字、补充说明、翻译，都很珍贵
 - 分享给朋友 → ⭐ **Star** 是最好的动力
 
 **一些可以贡献的方向：**
@@ -265,22 +263,6 @@ remote-claude-code/
 - 不要在公共 WiFi 上使用
 - 可以结合 VPN / SSH 隧道实现远程加密访问
 
-## 赞赏支持
-
-如果这个项目帮到了你，欢迎请作者喝杯咖啡。
-
-<p align="center">
-  <table>
-    <tr>
-      <td align="center"><b>微信赞赏</b></td>
-      <td align="center"><b>支付宝</b></td>
-    </tr>
-    <tr>
-      <td><img src="assets/wechat-pay.png" width="260" alt="微信赞赏码" /></td>
-      <td><img src="assets/alipay.png" width="260" alt="支付宝收款码" /></td>
-    </tr>
-  </table>
-</p>
 
 
 ## License
