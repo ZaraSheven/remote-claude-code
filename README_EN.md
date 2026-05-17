@@ -269,21 +269,6 @@ remote-claude-code/
 
 ## Support
 
-If this project helped you, consider buying the author a coffee.
-
-<p align="center">
-  <table>
-    <tr>
-      <td align="center"><b>WeChat</b></td>
-      <td align="center"><b>Alipay</b></td>
-    </tr>
-    <tr>
-      <td><img src="assets/wechat-pay.png" width="260" alt="WeChat QR" /></td>
-      <td><img src="assets/alipay.png" width="260" alt="Alipay QR" /></td>
-    </tr>
-  </table>
-</p>
-
 
 ## License
 
