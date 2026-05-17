@@ -254,6 +254,25 @@ remote-claude-code/
 - 不要在公共 WiFi 上使用
 - 可以结合 VPN / SSH 隧道实现远程加密访问
 
+## 赞赏支持
+
+如果这个项目帮到了你，欢迎请作者喝杯咖啡。
+
+<p align="center">
+  <table>
+    <tr>
+      <td align="center"><b>微信赞赏</b></td>
+      <td align="center"><b>支付宝</b></td>
+    </tr>
+    <tr>
+      <td><img src="assets/wechat-pay.png" width="260" alt="微信赞赏码" /></td>
+      <td><img src="assets/alipay.png" width="260" alt="支付宝收款码" /></td>
+    </tr>
+  </table>
+</p>
+
+> GitHub Sponsors 开启方式：前往 [github.com/sponsors/ZaraSheven](https://github.com/sponsors/ZaraSheven) 按指引完成设置，然后将 `.github/FUNDING.yml` 中的注释取消即可启用。
+
 ## License
 
 MIT
