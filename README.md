@@ -47,7 +47,7 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/melodyShan/remote-claude-code.git
+git clone https://github.com/ZaraSheven/remote-claude-code.git
 cd remote-claude-code
 ```
 

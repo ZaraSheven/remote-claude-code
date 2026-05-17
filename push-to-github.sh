@@ -14,9 +14,9 @@ if ! gh auth status &>/dev/null; then
 fi
 
 # Create repo if not exists
-if ! gh repo view melodyShan/remote-claude-code &>/dev/null; then
+if ! gh repo view ZaraSheven/remote-claude-code &>/dev/null; then
   echo "Creating repository..."
-  gh repo create melodyShan/remote-claude-code \
+  gh repo create ZaraSheven/remote-claude-code \
     --public \
     --description "Remote Claude Code: web terminal to access Claude Code from Android over LAN" \
     --source . \
@@ -28,4 +28,4 @@ else
 fi
 
 echo ""
-echo "Done! Visit: https://github.com/melodyShan/remote-claude-code"
+echo "Done! Visit: https://github.com/ZaraSheven/remote-claude-code"
