@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<title>Remote Claude Code</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #1a1a2e;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app { height: 100%; display: flex; flex-direction: column; }
+
+/* Toolbar */
+#toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+  flex-shrink: 0;
+  min-height: 44px;
+}
+#toolbar .title { color: #e94560; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+#status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #a0a0b0; }
+#status-dot { width: 8px; height: 8px; border-radius: 50%; background: #f39c12; flex-shrink: 0; }
+#status-dot.connected { background: #2ecc71; }
+#status-dot.disconnected { background: #e74c3c; }
+
+/* Browser warning */
+#browser-warning {
+  display: none;
+  background: #e74c3c;
+  color: #fff;
+  text-align: center;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+#browser-warning.show { display: block; }
+#browser-warning b { color: #ffeaa7; }
+
+/* Terminal */
+#term-container {
+  flex: 1;
+  padding: 4px;
+  background: #0d0d1a;
+  display: none;
+}
+#term-container.active { display: block; }
+#terminal { height: 100%; border-radius: 4px; }
+
+/* ── Overlay: Desktop (QR+URL) vs Mobile (Button only) ── */
+#overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(13,13,26,0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: opacity 0.3s;
+  overflow-y: auto;
+  padding: 20px 0;
+}
+#overlay.hidden { opacity: 0; pointer-events: none; }
+
+#overlay-card {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 12px;
+  padding: 28px 22px;
+  max-width: 400px;
+  width: 92%;
+  text-align: center;
+  color: #e0e0e0;
+}
+#overlay-card h2 { color: #e94560; margin-bottom: 12px; font-size: 20px; }
+
+/* Desktop sections */
+.desktop-only { display: none; }
+@media (min-width: 768px) {
+  .desktop-only { display: block; }
+}
+
+.subtitle { color: #a0a0b0; font-size: 12px; margin-bottom: 22px; line-height: 1.6; }
+
+.qr-section { margin-bottom: 18px; }
+.qr-section .label, .url-section .label {
+  font-size: 11px; color: #a0a0b0;
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+}
+.qr-wrap { background: #fff; padding: 10px; border-radius: 8px; display: inline-block; }
+.qr-wrap svg { display: block; width: 160px; height: 160px; }
+
+.url-section {
+  background: #0d0d1a;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+.url-row { display: flex; align-items: center; gap: 8px; }
+.url-input {
+  flex: 1; background: #1a1a2e; border: 1px solid #0f3460;
+  color: #4fc3f7; padding: 8px 10px; border-radius: 4px;
+  font-size: 12px; font-family: monospace; word-break: break-all; outline: none; min-width: 0;
+}
+.copy-btn {
+  background: #0f3460; color: #e0e0e0; border: none;
+  padding: 8px 12px; border-radius: 4px; font-size: 11px;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.copy-btn:active { background: #1a5276; }
+.copy-btn.copied { background: #2ecc71; color: #fff; }
+
+.divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 16px 0; color: #7f8c8d; font-size: 11px;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #0f3460; }
+
+/* Connect button */
+.connect-btn {
+  background: #e94560;
+  color: #fff;
+  border: none;
+  padding: 16px 0;
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 2px;
+  width: 100%;
+  transition: background 0.15s;
+}
+.connect-btn:active { background: #c0392b; }
+.connect-btn.connecting { background: #7f8c8d; pointer-events: none; }
+
+/* Status text below button */
+.connect-status {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #a0a0b0;
+  min-height: 18px;
+}
+.connect-status.error { color: #e74c3c; }
+.connect-status.ok { color: #2ecc71; }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: #2c3e50; color: #ecf0f1; padding: 10px 20px;
+  border-radius: 24px; font-size: 13px; z-index: 200;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+@media (max-width: 480px) {
+  #overlay-card { padding: 24px 16px; }
+  #overlay-card h2 { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="browser-warning"></div>
+  <div id="toolbar">
+    <span class="title">Claude Code</span>
+    <div id="status">
+      <span id="status-dot"></span>
+      <span id="status-text">未连接</span>
+    </div>
+  </div>
+  <div id="term-container">
+    <div id="terminal"></div>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div id="overlay">
+  <div id="overlay-card">
+    <h2>Remote Claude Code</h2>
+
+    <!-- Desktop: QR + URL -->
+    <div class="desktop-only">
+      <p class="subtitle">用手机 Chrome 扫码或输入链接访问</p>
+      <div class="qr-section">
+        <div class="label">扫码连接</div>
+        <div class="qr-wrap" id="qr-container"></div>
+      </div>
+      <div class="divider">或</div>
+      <div class="url-section">
+        <div class="label">直接输入链接</div>
+        <div class="url-row">
+          <input class="url-input" id="url-input" readonly value="" />
+          <button class="copy-btn" id="copy-btn">复制</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile: Button only -->
+    <button class="connect-btn" id="connect-btn">连接终端</button>
+    <div class="connect-status" id="connect-status"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/socket.io@4.8.0/client-dist/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+
+<script>
+// ── Browser detection ──
+const ua = navigator.userAgent || '';
+const isWeChat = /MicroMessenger/i.test(ua);
+const isQQ = /\bQQ\b/i.test(ua) && !/MicroMessenger/i.test(ua);
+const isInApp = isWeChat || isQQ || /Weibo/i.test(ua) || /baiduboxapp/i.test(ua);
+const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+const warningEl = document.getElementById('browser-warning');
+if (isInApp) {
+  warningEl.className = 'show';
+  warningEl.innerHTML =
+    '<b>当前浏览器不支持连接</b><br>请点击右上角 ··· → <b>在浏览器中打开</b>（推荐 Chrome）';
+}
+
+// ── DOM refs ──
+const overlay       = document.getElementById('overlay');
+const connectBtn    = document.getElementById('connect-btn');
+const connectStatus = document.getElementById('connect-status');
+const termContainer = document.getElementById('term-container');
+const statusDot     = document.getElementById('status-dot');
+const statusText    = document.getElementById('status-text');
+const toastEl       = document.getElementById('toast');
+
+// ── Helpers ──
+function setStatus(state, text) {
+  statusDot.className = state;
+  statusText.textContent = text;
+}
+
+let toastTimer;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
+}
+
+// ── Desktop: populate QR + URL ──
+if (!isMobile) {
+  fetch('/api/info')
+    .then(r => r.json())
+    .then(data => {
+      const primaryUrl = data.urls[0] || ('http://localhost:' + data.port);
+      document.getElementById('url-input').value = primaryUrl;
+      if (data.qrSvg) {
+        document.getElementById('qr-container').innerHTML = data.qrSvg;
+      }
+    })
+    .catch(() => {
+      document.getElementById('url-input').value = location.origin;
+    });
+
+  document.getElementById('copy-btn').addEventListener('click', () => {
+    const input = document.getElementById('url-input');
+    const url = input.value;
+    if (!url) return;
+    navigator.clipboard?.writeText(url).catch(() => {
+      input.removeAttribute('readonly');
+      input.select();
+      document.execCommand('copy');
+      input.setAttribute('readonly', '');
+    });
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '已复制';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── Terminal setup ──
+const term = new Terminal({
+  cursorBlink: true,
+  cursorStyle: 'bar',
+  fontSize: isMobile ? 11 : 13,
+  fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+  theme: {
+    background: '#0d0d1a', foreground: '#e0e0e0', cursor: '#e94560',
+    selectionBackground: '#e9456044',
+    black: '#1a1a2e', red: '#e94560', green: '#2ecc71', yellow: '#f1c40f',
+    blue: '#3498db', magenta: '#9b59b6', cyan: '#1abc9c', white: '#ecf0f1',
+    brightBlack: '#7f8c8d', brightRed: '#e74c3c', brightGreen: '#2ecc71',
+    brightYellow: '#f39c12', brightBlue: '#3498db', brightMagenta: '#8e44ad',
+    brightCyan: '#16a085', brightWhite: '#ffffff',
+  },
+  allowProposedApi: true,
+  scrollback: 5000,
+  tabStopWidth: 4,
+});
+
+const fitAddon = new FitAddon.FitAddon();
+const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+term.loadAddon(fitAddon);
+term.loadAddon(webLinksAddon);
+
+term.open(document.getElementById('terminal'));
+
+function fitTerm() { try { fitAddon.fit(); } catch(e) {} }
+
+// ── Socket.IO ──
+let socket = null;
+let ptyAlive = false;
+
+function createSocket() {
+  if (socket) {
+    try { socket.close(); } catch(e) {}
+  }
+
+  socket = io({
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000,
+  });
+
+  socket.on('connect', () => {
+    setStatus('connected', '已连接');
+    socket.emit('terminal-resize', { cols: term.cols, rows: term.rows });
+  });
+
+  socket.on('session-ready', ({ reconnected }) => {
+    ptyAlive = true;
+    if (reconnected) {
+      connectBtn.textContent = '已恢复';
+      connectBtn.classList.add('connecting');
+      connectStatus.textContent = '已恢复之前的会话';
+      connectStatus.className = 'connect-status ok';
+      setTimeout(() => { if (connectStatus.textContent === '已恢复之前的会话') connectStatus.textContent = ''; }, 3000);
+    } else {
+      connectBtn.textContent = '已连接';
+      connectBtn.classList.add('connecting');
+      connectStatus.textContent = 'Claude Code 启动中...';
+      connectStatus.className = 'connect-status ok';
+    }
+  });
+
+  socket.on('disconnect', () => {
+    setStatus('disconnected', '未连接');
+    ptyAlive = false;
+    connectBtn.textContent = '重新连接';
+    connectBtn.classList.remove('connecting');
+    connectStatus.textContent = '连接已断开，点击重连（会话不会丢失）';
+    connectStatus.className = 'connect-status error';
+  });
+
+  socket.on('connect_error', () => {
+    setStatus('disconnected', '连接失败');
+    ptyAlive = false;
+    connectBtn.textContent = '连接终端';
+    connectBtn.classList.remove('connecting');
+    connectStatus.textContent = '服务器不可达，请检查 PC 是否在线';
+    connectStatus.className = 'connect-status error';
+  });
+
+  socket.on('terminal-output', (data) => {
+    term.write(data);
+    if (connectStatus.textContent === 'Claude Code 启动中...') {
+      connectStatus.textContent = '';
+    }
+    if (data.indexOf('Shell exited') !== -1) {
+      ptyAlive = false;
+      connectBtn.textContent = '重新连接';
+      connectBtn.classList.remove('connecting');
+      connectStatus.textContent = '会话已退出，点击重新启动';
+      connectStatus.className = 'connect-status error';
+    }
+  });
+
+  term.onData((data) => {
+    if (socket && socket.connected) {
+      socket.emit('terminal-input', data);
+    }
+  });
+
+  term.onResize(({ cols, rows }) => {
+    if (socket && socket.connected) {
+      socket.emit('terminal-resize', { cols, rows });
+    }
+  });
+
+  term.onKey(({ domEvent }) => {
+    if (domEvent.key === 'Tab') {
+      domEvent.preventDefault();
+      if (socket && socket.connected) {
+        socket.emit('terminal-input', '\t');
+      }
+    }
+  });
+
+  return socket;
+}
+
+function resetSession() {
+  if (socket && socket.connected) {
+    term.clear();
+    socket.emit('reset-session');
+    ptyAlive = true;
+    connectBtn.textContent = '已连接';
+    connectBtn.classList.add('connecting');
+    connectStatus.textContent = '新会话已启动...';
+    connectStatus.className = 'connect-status ok';
+  }
+}
+
+// ── Resize observer ──
+fitTerm();
+window.addEventListener('resize', fitTerm);
+if (window.ResizeObserver) {
+  new ResizeObserver(() => {
+    fitTerm();
+    if (socket && socket.connected) {
+      socket.emit('terminal-resize', { cols: term.cols, rows: term.rows });
+    }
+  }).observe(termContainer);
+}
+
+// ── Connect button ──
+connectBtn.addEventListener('click', () => {
+  if (isInApp) {
+    showToast('请先在浏览器中打开此页面');
+    return;
+  }
+
+  // Already connected, PTY alive — just hide overlay
+  if (socket && socket.connected && ptyAlive) {
+    overlay.classList.add('hidden');
+    termContainer.classList.add('active');
+    fitTerm();
+    term.focus();
+    return;
+  }
+
+  // Connected but PTY died — reset
+  if (socket && socket.connected && !ptyAlive) {
+    overlay.classList.add('hidden');
+    termContainer.classList.add('active');
+    fitTerm();
+    term.focus();
+    resetSession();
+    return;
+  }
+
+  // Fresh connection (or reconnection)
+  connectBtn.textContent = '连接中...';
+  connectBtn.classList.add('connecting');
+  connectStatus.textContent = '';
+  connectStatus.className = 'connect-status';
+
+  createSocket();
+
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    termContainer.classList.add('active');
+    fitTerm();
+    term.focus();
+  }, 400);
+});
+
+// Focus terminal on tap
+termContainer.addEventListener('click', () => { term.focus(); });
+
+// Prevent double-tap zoom
+document.addEventListener('dblclick', (e) => { e.preventDefault(); }, { passive: false });
+</script>
+
+</body>
+</html>

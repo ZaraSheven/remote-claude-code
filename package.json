@@ -1,0 +1,16 @@
+{
+  "name": "remote-claude-code",
+  "version": "1.0.0",
+  "description": "Remote access to Claude Code from Android via web terminal",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.8.0",
+    "node-pty": "^1.0.0",
+    "qrcode": "^1.5.4"
+  }
+}
