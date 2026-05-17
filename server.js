@@ -15,6 +15,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   maxHttpBufferSize: 1e6,
+  pingInterval: 10000,
+  pingTimeout: 30000,
+  connectTimeout: 10000,
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -112,22 +115,28 @@ function getSession() {
   return session;
 }
 
+function timestamp() {
+  return new Date().toLocaleTimeString('zh-CN', { hour12: false });
+}
+
 io.on('connection', (socket) => {
-  console.log(`[+] Client connected: ${socket.id}`);
+  const time = timestamp();
+  console.log(`[${time}] [+] Client connected: ${socket.id} (total: ${io.engine.clientsCount})`);
 
   const sess = getSession();
+  const isNew = sess.buffer.length === 0;
   sess.clients.add(socket);
 
   // Replay buffer so reconnecting client sees prior output
-  if (sess.buffer.length > 0) {
+  if (!isNew) {
     const recent = sess.buffer.slice(-200);
     recent.forEach(d => socket.emit('terminal-output', d));
   }
 
-  socket.emit('session-ready', { reconnected: sess.buffer.length > 0 });
+  socket.emit('session-ready', { reconnected: !isNew });
 
   socket.on('terminal-input', (data) => {
-    const s = session; // use current session (survives reset)
+    const s = session;
     if (s) { try { s.pty.write(data); } catch {} }
   });
 
@@ -137,21 +146,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('reset-session', () => {
+    console.log(`[${timestamp()}] [*] Session reset by ${socket.id}`);
     const old = sess;
     try { old.pty.kill(); } catch {}
     const fresh = createPTY();
-    // Move all existing clients to new session
     old.clients.forEach(c => fresh.clients.add(c));
     old.clients.clear();
     socket.emit('terminal-output', '\r\n\x1b[36mSession reset.\x1b[0m\r\n');
   });
 
-  socket.on('disconnect', () => {
-    console.log(`[-] Client disconnected: ${socket.id}`);
+  socket.on('disconnect', (reason) => {
+    const t = timestamp();
+    console.log(`[${t}] [-] Client disconnected: ${socket.id} reason=${reason} (total: ${io.engine.clientsCount - 1})`);
     sess.clients.delete(socket);
   });
 
-  socket.on('error', () => {
+  socket.on('error', (err) => {
+    console.log(`[${timestamp()}] [!] Socket error: ${socket.id} ${err.message || err}`);
     sess.clients.delete(socket);
   });
 });
