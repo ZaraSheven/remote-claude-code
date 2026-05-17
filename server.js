@@ -60,8 +60,7 @@ app.get('/api/info', async (req, res) => {
 });
 
 // ── Persistent session ──
-// PTY survives client disconnects so reconnecting resumes the same shell.
-let session = null; // { pty, clients: Set<socket>, buffer: string[] }
+let session = null; // { pty, clients, buffer, firstConnect }
 
 const MAX_BUFFER = 2000;
 
@@ -82,25 +81,30 @@ function createPTY() {
 
   console.log(`[+] PTY spawned (pid: ${ptyProcess.pid})`);
 
-  if (AUTO_CMD) {
-    setTimeout(() => {
-      try { ptyProcess.write(AUTO_CMD + '\r'); } catch {}
-    }, 1000);
-  }
-
   const clients = new Set();
   const buffer = [];
-  const self = { pty: ptyProcess, clients, buffer };
+  const self = { pty: ptyProcess, clients, buffer, firstConnect: true };
+
+  let autoCmdSent = false;
 
   ptyProcess.onData((data) => {
     buffer.push(data);
     if (buffer.length > MAX_BUFFER) buffer.shift();
     self.clients.forEach(s => { try { s.emit('terminal-output', data); } catch {} });
+
+    // Auto-launch on first data (shell is ready)
+    if (AUTO_CMD && !autoCmdSent) {
+      autoCmdSent = true;
+      // Small delay after first data to ensure shell is fully initialized
+      setTimeout(() => {
+        try { self.pty.write(AUTO_CMD + '\r'); } catch {}
+      }, 500);
+    }
   });
 
   ptyProcess.onExit(({ exitCode }) => {
     console.log(`[-] PTY exited: code=${exitCode}`);
-    const msg = '\r\n\x1b[33mShell exited (code ' + exitCode + '). 点击「重新连接」重启会话。\x1b[0m\r\n';
+    const msg = '\r\n\x1b[33mShell exited (code ' + exitCode + '). Click reconnect to restart session.\x1b[0m\r\n';
     self.clients.forEach(s => { try { s.emit('terminal-output', msg); } catch {} });
     if (session === self) session = null;
   });
@@ -115,20 +119,22 @@ function getSession() {
   return session;
 }
 
-function timestamp() {
-  return new Date().toLocaleTimeString('zh-CN', { hour12: false });
+function ts() {
+  return new Date().toISOString().split('T')[1].slice(0, 12);
 }
 
+// ── Socket.IO ──
 io.on('connection', (socket) => {
-  const time = timestamp();
-  console.log(`[${time}] [+] Client connected: ${socket.id} (total: ${io.engine.clientsCount})`);
+  console.log(`[${ts()}] + ${socket.id} (total: ${io.engine.clientsCount})`);
 
   const sess = getSession();
-  const isNew = sess.buffer.length === 0;
+  const isNew = sess.firstConnect;
+  if (isNew) sess.firstConnect = false;
+
   sess.clients.add(socket);
 
-  // Replay buffer so reconnecting client sees prior output
-  if (!isNew) {
+  // Replay buffer for reconnecting clients
+  if (!isNew && sess.buffer.length > 0) {
     const recent = sess.buffer.slice(-200);
     recent.forEach(d => socket.emit('terminal-output', d));
   }
@@ -146,27 +152,52 @@ io.on('connection', (socket) => {
   });
 
   socket.on('reset-session', () => {
-    console.log(`[${timestamp()}] [*] Session reset by ${socket.id}`);
-    const old = sess;
+    console.log(`[${ts()}] * reset by ${socket.id}`);
+    const old = session;
+    if (!old) {
+      // No session to reset, create fresh
+      const fresh = createPTY();
+      fresh.clients.add(socket);
+      socket.emit('terminal-output', '\r\n\x1b[36mNew session started.\x1b[0m\r\n');
+      return;
+    }
     try { old.pty.kill(); } catch {}
     const fresh = createPTY();
-    old.clients.forEach(c => fresh.clients.add(c));
+    // Migrate all active clients to the new session
+    old.clients.forEach(c => {
+      try { fresh.clients.add(c); } catch {}
+    });
     old.clients.clear();
-    socket.emit('terminal-output', '\r\n\x1b[36mSession reset.\x1b[0m\r\n');
+    // Notify all clients
+    fresh.clients.forEach(c => {
+      try { c.emit('terminal-output', '\r\n\x1b[36mSession reset.\x1b[0m\r\n'); } catch {}
+    });
   });
 
   socket.on('disconnect', (reason) => {
-    const t = timestamp();
-    console.log(`[${t}] [-] Client disconnected: ${socket.id} reason=${reason} (total: ${io.engine.clientsCount - 1})`);
+    console.log(`[${ts()}] - ${socket.id} ${reason} (total: ${io.engine.clientsCount - 1})`);
     sess.clients.delete(socket);
   });
 
   socket.on('error', (err) => {
-    console.log(`[${timestamp()}] [!] Socket error: ${socket.id} ${err.message || err}`);
+    console.log(`[${ts()}] ! ${socket.id} ${err.message || err}`);
     sess.clients.delete(socket);
   });
 });
 
+// ── Graceful shutdown ──
+process.on('SIGINT', () => {
+  console.log('\nShutting down...');
+  if (session) { try { session.pty.kill(); } catch {} }
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  if (session) { try { session.pty.kill(); } catch {} }
+  process.exit(0);
+});
+
+// ── Server errors ──
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error('');
@@ -184,9 +215,11 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('══ Remote Claude Code ══');
   console.log('');
-  console.log('  Phone URL:  http://' + (ips[0] || 'localhost') + ':' + PORT);
-  if (ips.length > 1) {
+  if (ips.length > 0) {
+    console.log('  Phone URL:  http://' + ips[0] + ':' + PORT);
     ips.slice(1).forEach(ip => console.log('  (alt)       http://' + ip + ':' + PORT));
+  } else {
+    console.log('  No network IP found. Check your connection.');
   }
   if (AUTO_CMD) {
     console.log('');

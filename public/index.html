@@ -388,16 +388,16 @@ function createSocket() {
     connectStatus.className = 'connect-status error';
   });
 
-  socket.on('connect_error', () => {
+  socket.on('connect_error', (err) => {
     reconnectAttempts++;
-    setStatus('disconnected', '连接失败 (' + reconnectAttempts + ')');
+    setStatus('disconnected', '重试 ' + reconnectAttempts);
     ptyAlive = false;
-    if (reconnectAttempts > 5) {
+    if (reconnectAttempts > 8) {
       connectBtn.textContent = '连接终端';
       connectBtn.classList.remove('connecting');
-      connectStatus.textContent = '无法连接，请检查 PC 服务器是否在线';
+      connectStatus.textContent = '无法连接 (' + (err && err.message ? err.message : 'timeout') + ')';
     } else {
-      connectStatus.textContent = '连接失败，第 ' + reconnectAttempts + ' 次重试...';
+      connectStatus.textContent = '连接失败，自动重试 (' + reconnectAttempts + '/8)';
     }
     connectStatus.className = 'connect-status error';
   });
