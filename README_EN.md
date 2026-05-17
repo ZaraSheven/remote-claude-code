@@ -1,5 +1,10 @@
 # Remote Claude Code
 
+<p align="center">
+  <a href="README.md">中文</a> |
+  <a href="README_EN.md">English</a>
+</p>
+
 Access [Claude Code](https://claude.ai/code) running on your PC from your phone — no app, no cloud server, just a browser.
 
 <p align="center">
@@ -275,7 +280,6 @@ If this project helped you, consider buying the author a coffee.
   </table>
 </p>
 
-> To enable GitHub Sponsors: go to [github.com/sponsors/ZaraSheven](https://github.com/sponsors/ZaraSheven), follow the setup guide, then uncomment the line in `.github/FUNDING.yml`.
 
 ## License
 

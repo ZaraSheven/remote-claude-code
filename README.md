@@ -1,5 +1,10 @@
 # Remote Claude Code
 
+<p align="center">
+  <a href="README.md">中文</a> |
+  <a href="README_EN.md">English</a>
+</p>
+
 在手机上远程使用 PC 上运行的 [Claude Code](https://claude.ai/code)，无需安装 App，无需云服务器，仅需一个浏览器。
 
 <p align="center">
@@ -272,7 +277,6 @@ remote-claude-code/
   </table>
 </p>
 
-> GitHub Sponsors 开启方式：前往 [github.com/sponsors/ZaraSheven](https://github.com/sponsors/ZaraSheven) 按指引完成设置，然后将 `.github/FUNDING.yml` 中的注释取消即可启用。
 
 ## License
 
