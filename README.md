@@ -241,7 +241,8 @@ remote-claude-code/
 ├── fix-network.ps1    # Windows 网络修复脚本（管理员运行）
 ├── hotspot-server.bat # 热点模式启动脚本
 ├── .gitignore
-├── README.md
+├── README.md          # 中文文档
+├── README_EN.md       # English docs
 └── public/
     └── index.html     # 前端：xterm.js 终端 + QR 码 + 响应式布局
 ```
