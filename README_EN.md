@@ -40,7 +40,7 @@ Access [Claude Code](https://claude.ai/code) running on your PC from your phone 
 - **Zero servers**: No cloud dependency — your PC is the server
 - **Persistent sessions**: Closing the browser won't kill your Claude Code conversation; reconnect and pick up right where you left off
 - **Multi-client**: Multiple devices can connect to the same terminal session simultaneously
-- **QR code connect**: QR code auto-generated on PC; scan with your phone to connect instantly
+- **QR code connect**: QR code auto-generated on PC; scan with your phone to connect instantly（cancel）
 - **Cross-platform**: Windows, macOS, and Linux all supported
 - **Auto-launch Claude Code**: Automatically runs `claude` on first connection
 - **Browser detection**: Warns users when opened in unsupported browsers (WeChat, QQ, etc.)
