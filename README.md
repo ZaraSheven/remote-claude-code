@@ -11,6 +11,10 @@
   <strong>PC 运行服务 → 手机浏览器打开 → 扫码或输入 URL → 终端直连</strong>
 </p>
 
+<p align="center">
+  <img src="assets/screenshot-phone.png" width="320" alt="手机端效果图" />
+</p>
+
 ---
 
 ## 架构

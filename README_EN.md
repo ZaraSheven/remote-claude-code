@@ -11,6 +11,10 @@ Access [Claude Code](https://claude.ai/code) running on your PC from your phone 
   <strong>PC runs server → Phone browser opens → Scan QR or enter URL → Terminal connects</strong>
 </p>
 
+<p align="center">
+  <img src="assets/screenshot-phone.png" width="320" alt="Phone screenshot" />
+</p>
+
 ---
 
 ## Architecture
